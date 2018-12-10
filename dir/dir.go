@@ -1,6 +1,7 @@
 package dir
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -9,6 +10,22 @@ func errChk(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func readSymlink(path string) (string, error) {
+	link, err := os.Readlink(path)
+	if err != nil {
+		return path, fmt.Errorf("%s points to a broken target.", path)
+	}
+	link = filepath.Join(filepath.Dir(path), link)
+	info, err := os.Stat(link)
+	if err != nil {
+		return link, fmt.Errorf("%s may be broken.", link)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return readSymlink(link)
+	}
+	return link, nil
 }
 
 func Ls(dir, format string) ([]string, error) {
@@ -22,6 +39,20 @@ func Ls(dir, format string) ([]string, error) {
 			if info.IsDir() {
 				files = append(files, path)
 			}
+			// the symlinks to directories
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err := readSymlink(path)
+				if err != nil {
+					return err
+				}
+				f, err := os.Stat(link)
+				if err != nil {
+					return err
+				}
+				if f.IsDir() {
+					files = append(files, link)
+				}
+			}
 		case "symlink":
 			if info.Mode()&os.ModeSymlink != 0 {
 				files = append(files, path)
@@ -29,6 +60,20 @@ func Ls(dir, format string) ([]string, error) {
 		default:
 			if info.Mode().IsRegular() {
 				files = append(files, path)
+			}
+			// the symlinks to actual files
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err := readSymlink(path)
+				if err != nil {
+					return err
+				}
+				f, err := os.Stat(link)
+				if err != nil {
+					return err
+				}
+				if f.Mode().IsRegular() {
+					files = append(files, link)
+				}
 			}
 		}
 		return nil
@@ -43,21 +88,13 @@ func Lsd(dir string) []string {
 }
 
 func Lsl(dir string) []string {
-	dirs, e := Ls(dir, "symlink")
+	links, e := Ls(dir, "symlink")
 	errChk(e)
-	return dirs
+	return links
 }
 
 func Lsf(dir string) []string {
 	files, e := Ls(dir, "file")
 	errChk(e)
-
-	links, e := Ls(dir, "symlink")
-	errChk(e)
-
-	for _, v := range links {
-		files = append(files, v)
-	}
-
 	return files
 }
