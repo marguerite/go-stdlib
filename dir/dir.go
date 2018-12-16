@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 func errChk(e error) {
@@ -12,18 +13,30 @@ func errChk(e error) {
 	}
 }
 
-func readSymlink(path string) (string, error) {
+type NonExistTargetError struct {
+  Name string
+  Err error
+}
+
+func (e NonExistTargetError) Error() string {
+  return e.Name
+}
+
+func ReadSymlink(path string) (string, error) {
 	link, err := os.Readlink(path)
 	if err != nil {
-		return path, fmt.Errorf("%s points to a broken target.", path)
+		return path, err
 	}
-	link = filepath.Join(filepath.Dir(path), link)
+  if !filepath.IsAbs(link) {
+	  link = filepath.Join(filepath.Dir(path), link)
+  }
 	info, err := os.Stat(link)
 	if err != nil {
-		return link, fmt.Errorf("%s may be broken.", link)
+		//return link, fmt.Errorf("%s may be broken.", link)
+    return link, NonExistTargetError{path+" points to an non-existent target "+link, err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return readSymlink(link)
+		return ReadSymlink(link)
 	}
 	return link, nil
 }
@@ -31,9 +44,13 @@ func readSymlink(path string) (string, error) {
 func Ls(dir, format string) ([]string, error) {
 	var files []string
 	e := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+    if err != nil {
+      if os.IsPermission(err) {
+        fmt.Printf("WARNING: no permission to visit %s, skipped.\n", path)
+        return nil
+      }
+      return err
+    }
 		switch format {
 		case "dir":
 			if info.IsDir() {
@@ -41,16 +58,21 @@ func Ls(dir, format string) ([]string, error) {
 			}
 			// the symlinks to directories
 			if info.Mode()&os.ModeSymlink != 0 {
-				link, err := readSymlink(path)
-				if err != nil {
-					return err
-				}
+				link, err := ReadSymlink(path)
+        if err != nil {
+				  if _, ok := err.(NonExistTargetError); ok {
+            // the symlink points to an non-existent target, ignore
+            fmt.Printf("WARNING: %s points to an non-existent target %s.\n", path, link)
+            return nil
+          }
+          return err
+        }
 				f, err := os.Stat(link)
-				if err != nil {
-					return err
-				}
-				if f.IsDir() {
-					files = append(files, link)
+        if err != nil {
+          return err
+        }
+        if f.IsDir() {
+					files = append(files, path)
 				}
 			}
 		case "symlink":
@@ -63,8 +85,13 @@ func Ls(dir, format string) ([]string, error) {
 			}
 			// the symlinks to actual files
 			if info.Mode()&os.ModeSymlink != 0 {
-				link, err := readSymlink(path)
+				link, err := ReadSymlink(path)
 				if err != nil {
+          if _, ok := err.(NonExistTargetError); ok {
+            // the symlink points to an non-existent target, ignore
+            fmt.Printf("WARNING: %s points to an non-existent target %s.\n", path, link)
+            return nil
+          }
 					return err
 				}
 				f, err := os.Stat(link)
@@ -97,4 +124,14 @@ func Lsf(dir string) []string {
 	files, e := Ls(dir, "file")
 	errChk(e)
 	return files
+}
+
+func Glob(dir string, r *regexp.Regexp) []string {
+	m := []string{}
+	for _, v := range append(Lsd(dir), Lsf(dir)...) {
+		if r.MatchString(v) {
+			m = append(m, v)
+		}
+	}
+	return m
 }
