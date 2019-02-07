@@ -33,13 +33,13 @@ func Touch(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		f, err := os.Create(path)
 		if err != nil {
-      if os.IsPermission(err) {
-        fmt.Printf("WARNING: no permission to create %s, skipped...\n", path)
-        return nil
-      }
+			if os.IsPermission(err) {
+				fmt.Printf("WARNING: no permission to create %s, skipped...\n", path)
+				return nil
+			}
 			return err
 		}
-    defer f.Close()
+		defer f.Close()
 	}
 	return nil
 }
