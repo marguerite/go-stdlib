@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 )
 
-//Dir is a directory
-type Dir string
+// Debug a trigger for debug output
+const Debug int = 256
 
 /*NonExistTargetError is used to indicate the target a symlink points
   to actually does not exist on the filesystem.
@@ -34,7 +34,6 @@ func ReadSymlink(path string) (string, error) {
 	}
 	info, err := os.Stat(link)
 	if err != nil {
-		//return link, fmt.Errorf("%s may be broken.", link)
 		return link, NonExistTargetError{path + " points to an non-existent target " + link, err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
@@ -46,9 +45,9 @@ func ReadSymlink(path string) (string, error) {
 /*Ls accepts a directory and the kind of file beneath to be listed,
   returns the list of file and the possible error.
 
-	Kind supports: dir, symlink, file.
+	Kind supports: dir, symlink, defaults to file.
 */
-func (d Dir) Ls(kind string) ([]string, error) {
+func Ls(d, kind string) ([]string, error) {
 	var files []string
 	e := filepath.Walk(string(d), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -113,4 +112,30 @@ func (d Dir) Ls(kind string) ([]string, error) {
 		return nil
 	})
 	return files, e
+}
+
+// MakePath create directories for path
+func MkdirP(path string, verbosity int) error {
+	p := filepath.Dir(path)
+	if verbosity >= Debug {
+		fmt.Printf("--- creating directory: %s\n", p)
+	}
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		err := os.MkdirAll(p, os.ModeDir)
+		if err != nil {
+			if verbosity >= Debug {
+				fmt.Println("can not create.")
+			}
+			return err
+		}
+		if verbosity >= Debug {
+			fmt.Println("created.")
+		}
+	} else {
+		if verbosity >= Debug {
+			fmt.Println("exists.")
+		}
+		return nil
+	}
+	return nil
 }

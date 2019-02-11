@@ -1,33 +1,15 @@
-package file
+package fileutils
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
-func IsSymlink(path string) (bool, error) {
-	f, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	if f.Mode()&os.ModeSymlink != 0 {
-		return true, nil
-	}
-	return false, nil
-}
-
-func IsRegular(path string) (bool, error) {
-	f, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	if f.Mode().IsRegular() {
-		return true, nil
-	}
-	return false, nil
-}
+// Debug a trigger for debug output
+const Debug int = 256
 
 func Touch(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -44,10 +26,23 @@ func Touch(path string) error {
 	return nil
 }
 
-func Remove(path string) error {
-	err := os.Remove(path)
-	if err != nil {
-		return err
+// Remove remove a file
+func Remove(f string, verbosity int) error {
+	if _, err := os.Stat(f); !os.IsNotExist(err) {
+		err := os.Remove(f)
+		if err != nil {
+			if verbosity >= Debug {
+				fmt.Printf("--- WARNING: can not delete %s\n", f)
+			}
+			return err
+		}
+		if verbosity >= Debug {
+			fmt.Printf("--- %s deleted.\n", f)
+		}
+	} else {
+		if verbosity >= Debug {
+			fmt.Printf("--- WARNING: %s does not exist, can't delete.\n", f)
+		}
 	}
 	return nil
 }
@@ -96,4 +91,24 @@ func Copy(src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+// HasPrefixSuffixInGroup if a string's prefix/suffix matches one in group
+// b trigger's prefix match
+func HasPrefixSuffixInGroup(s string, group []string, b bool) bool {
+	prefix := "(?i)"
+	suffix := ""
+	if b {
+		prefix += "^"
+	} else {
+		suffix += "$"
+	}
+
+	for _, v := range group {
+		re := regexp.MustCompile(prefix + regexp.QuoteMeta(v) + suffix)
+		if re.MatchString(s) {
+			return true
+		}
+	}
+	return false
 }
