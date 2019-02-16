@@ -1,4 +1,4 @@
-package dir
+package dirutils
 
 import (
 	"reflect"
