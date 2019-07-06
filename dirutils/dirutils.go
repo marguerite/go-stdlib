@@ -1,7 +1,6 @@
 package dirutils
 
 import (
-	"errors"
 	"fmt"
 	"github.com/marguerite/util/slice"
 	"os"
@@ -109,16 +108,16 @@ func ls(d string, kind string) ([]string, error) {
 func Ls(d string, kinds ...string) ([]string, error) {
 
 	if len(kinds) == 0 {
-		return fn(d, "")
+		return ls(d, "")
 	}
 
 	if len(kinds) == 1 {
-		return fn(d, kinds[0])
+		return ls(d, kinds[0])
 	}
 
 	f := []string{}
 	for _, kind := range kinds {
-		i, err := fn(d, kind)
+		i, err := ls(d, kind)
 		if err != nil {
 			// f is incomplete
 			return f, err
@@ -146,16 +145,8 @@ func MkdirP(path string) error {
 	return nil
 }
 
-func Glob(dir string, pattern interface{}, fn ...func(string, ...string) ([]string, error)) ([]string, error) {
-	if len(fn) == 0 {
-		fn = append(fn, Ls)
-	}
-
-	files, err := fn[0](dir)
-	if err != nil {
-		return []string{}, err
-	}
-	var re []*regexp.Regexp
+func parseRegexpPattern(pattern interface{}) []*regexp.Regexp {
+	re := []*regexp.Regexp{}
 	switch v := pattern.(type) {
 	case *regexp.Regexp:
 		re = append(re, v)
@@ -163,14 +154,62 @@ func Glob(dir string, pattern interface{}, fn ...func(string, ...string) ([]stri
 		re = v
 	case string:
 		re = append(re, regexp.MustCompile(v))
+	case []string:
+		for _, i := range v {
+			re = append(re, regexp.MustCompile(i))
+		}
 	default:
-		return []string{}, errors.New("Unsupported pattern type. Supported: *regexp.Regexp, []*regexp.Regexp, string.")
+		fmt.Println("Unsupported pattern type. Supported: *regexp.Regexp, []*regexp.Regexp, string.")
+		os.Exit(1)
 	}
+	return re
+}
+
+// Glob return files in `dir` directory that matches `pattern`. can pass `ex` to exclude file from the matches. ex's expanded regex number can be zero (no exclusion), one (test against every expanded regex in pattern), or equals to the number of expanded regex in pattern(one exclude regex refers to one match regex). expanded regex number, eg: [".*\\.yaml","opencc\\/.*"] is one slice param, but the expanded regex number will be two.
+func Glob(dir string, pattern interface{}, ex ...interface{}) ([]string, error) {
+	return glob(dir, pattern, Ls, ex)
+}
+
+// fn: used to pass a test function or a real function that involves file operations.
+func glob(dir string, pattern interface{}, fn func(string, ...string) ([]string, error), ex ...interface{}) ([]string, error) {
+	files, err := fn(dir)
+	if err != nil {
+		return []string{}, err
+	}
+
+	re := parseRegexpPattern(pattern)
+	re1 := []*regexp.Regexp{}
+	if len(ex) > 0 {
+		for _, v := range ex {
+			for _, r := range parseRegexpPattern(v) {
+				re1 = append(re1, r)
+			}
+		}
+	}
+
+	if len(re) != len(re1) && len(re1) > 1 {
+		fmt.Println("We just support exclude regex whose number matches zero, one or the number of regex in pattern.")
+		os.Exit(1)
+	}
+
 	m := []string{}
 	for _, f := range files {
-		for _, r := range re {
+		for i, r := range re {
 			if r.MatchString(f) {
-				m = append(m, f)
+				if len(re1) == 0 {
+					m = append(m, f)
+				} else {
+					if len(re1) == 1 {
+						if !re1[0].MatchString(f) && len(re1[0].String()) != 0 {
+							m = append(m, f)
+						}
+					} else {
+						if !re1[i].MatchString(f) && len(re1[i].String()) != 0 {
+							m = append(m, f)
+						}
+					}
+				}
+
 			}
 		}
 	}

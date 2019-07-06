@@ -24,7 +24,8 @@ func TestGlobRegexp(t *testing.T) {
 	}
 
 	re := regexp.MustCompile(".*\\.yaml")
-	files, err := Glob("fakeDir", re, fn)
+	re1 := regexp.MustCompile("(custom|recipe)\\.yaml")
+	files, err := glob("fakeDir", re, fn, re1)
 	if err != nil {
 		t.Error("TestGlobRegexp failed.")
 	}
@@ -46,7 +47,7 @@ func TestGlobRegexpGroup(t *testing.T) {
 		regexp.MustCompile("opencc\\/.*\\.json"),
 	}
 
-	files, err := Glob("fakeDir", re, fn)
+	files, err := glob("fakeDir", re, fn)
 	if err != nil {
 		t.Error("TestGlobRegexpGroup failed.")
 	}
