@@ -44,17 +44,19 @@ func TestGlobRegexpGroup(t *testing.T) {
 	}
 
 	re := []*regexp.Regexp{regexp.MustCompile(".*\\.yaml"),
-		regexp.MustCompile("opencc\\/.*\\.json"),
+		regexp.MustCompile("opencc\\/.*"),
 	}
+	re1 := []*regexp.Regexp{regexp.MustCompile("(custom|recipe)\\.yaml"),
+		regexp.MustCompile("\\.(json|txt|ocd)")}
 
-	files, err := glob("fakeDir", re, fn)
+	files, err := glob("fakeDir", re, fn, re1)
 	if err != nil {
 		t.Error("TestGlobRegexpGroup failed.")
 	}
 
 	b, err := slice.Contains(files, "zhung.dict.yaml")
 	b1, err1 := slice.Contains(files, "opencc/s2t.json")
-	if (b && err == nil) && (b1 && err1 == nil) {
+	if (b && err == nil) && (!b1 && err1 == nil) {
 		t.Log("TestGlobRegexpGroup passed.")
 	} else {
 		t.Error("TestGlobRegexpGroup failed.")

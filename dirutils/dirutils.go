@@ -145,13 +145,14 @@ func MkdirP(path string) error {
 	return nil
 }
 
-func parseRegexpPattern(pattern interface{}) []*regexp.Regexp {
-	re := []*regexp.Regexp{}
+func parseRegexpPattern(re []*regexp.Regexp, pattern interface{}) []*regexp.Regexp {
 	switch v := pattern.(type) {
 	case *regexp.Regexp:
 		re = append(re, v)
 	case []*regexp.Regexp:
-		re = v
+		for _, i := range v {
+			re = append(re, i)
+		}
 	case string:
 		re = append(re, regexp.MustCompile(v))
 	case []string:
@@ -159,7 +160,7 @@ func parseRegexpPattern(pattern interface{}) []*regexp.Regexp {
 			re = append(re, regexp.MustCompile(i))
 		}
 	default:
-		fmt.Println("Unsupported pattern type. Supported: *regexp.Regexp, []*regexp.Regexp, string.")
+		fmt.Println("Unsupported pattern type. Supported: *regexp.Regexp, []*regexp.Regexp, string, []string.")
 		os.Exit(1)
 	}
 	return re
@@ -167,7 +168,7 @@ func parseRegexpPattern(pattern interface{}) []*regexp.Regexp {
 
 // Glob return files in `dir` directory that matches `pattern`. can pass `ex` to exclude file from the matches. ex's expanded regex number can be zero (no exclusion), one (test against every expanded regex in pattern), or equals to the number of expanded regex in pattern(one exclude regex refers to one match regex). expanded regex number, eg: [".*\\.yaml","opencc\\/.*"] is one slice param, but the expanded regex number will be two.
 func Glob(dir string, pattern interface{}, ex ...interface{}) ([]string, error) {
-	return glob(dir, pattern, Ls, ex)
+	return glob(dir, pattern, Ls, ex...)
 }
 
 // fn: used to pass a test function or a real function that involves file operations.
@@ -177,13 +178,13 @@ func glob(dir string, pattern interface{}, fn func(string, ...string) ([]string,
 		return []string{}, err
 	}
 
-	re := parseRegexpPattern(pattern)
+	re := []*regexp.Regexp{}
+	re = parseRegexpPattern(re, pattern)
 	re1 := []*regexp.Regexp{}
 	if len(ex) > 0 {
+		// ex's type is []interface{}, need to assert to actual type first
 		for _, v := range ex {
-			for _, r := range parseRegexpPattern(v) {
-				re1 = append(re1, r)
-			}
+			re1 = parseRegexpPattern(re1, v)
 		}
 	}
 
