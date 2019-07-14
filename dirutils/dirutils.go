@@ -42,7 +42,7 @@ func ls(d string, kind string) ([]string, error) {
 	e := filepath.Walk(string(d), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
-				fmt.Printf("WARNING: no permission to visit %s, skipped.\n", path)
+				fmt.Println("WARNING: no permission to visit " + path + ", skipped")
 				return nil
 			}
 			return err
@@ -58,7 +58,7 @@ func ls(d string, kind string) ([]string, error) {
 				if err != nil {
 					if _, ok := err.(ErrNonExistTarget); ok {
 						// the symlink points to an non-existent target, ignore
-						fmt.Printf("WARNING: %s points to an non-existent target %s.\n", path, link)
+						fmt.Println("WARNING: " + path + " points to an non-existent target " + link)
 						return nil
 					}
 					return err
@@ -85,7 +85,7 @@ func ls(d string, kind string) ([]string, error) {
 				if err != nil {
 					if _, ok := err.(ErrNonExistTarget); ok {
 						// the symlink points to an non-existent target, ignore
-						fmt.Printf("WARNING: %s points to an non-existent target %s.\n", path, link)
+						fmt.Println("WARNING: " + path + " points to an non-existent target " + link)
 						return nil
 					}
 					return err
@@ -129,17 +129,18 @@ func Ls(d string, kinds ...string) ([]string, error) {
 
 // MkdirP create directories for path
 func MkdirP(path string) error {
+	// FIXME filepath.Dir
 	p := filepath.Dir(path)
-	fmt.Printf("Creating directory: %s\n", p)
+	fmt.Println("Creating directory: " + p)
 	if _, err := os.Stat(p); os.IsNotExist(err) {
 		err := os.MkdirAll(p, os.ModeDir)
 		if err != nil {
-			fmt.Printf("Can not create directory %s\n", p)
+			fmt.Println("Can not create directory " + p)
 			return err
 		}
-		fmt.Printf("%s created\n", p)
+		fmt.Println(p + " created")
 	} else {
-		fmt.Printf("%s exists already\n", p)
+		fmt.Println(p + " exists already")
 		return nil
 	}
 	return nil

@@ -1,40 +1,57 @@
 package fileutils
 
 import (
+	"errors"
 	"fmt"
+	"github.com/marguerite/dirutils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 )
 
-// Debug a trigger for debug output
-const Debug int = 256
-
-func Touch(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		f, err := os.Create(path)
-		if err != nil {
-			if os.IsPermission(err) {
-				fmt.Printf("WARNING: no permission to create %s, skipped...\n", path)
-				return nil
-			}
-			return err
-		}
-		defer f.Close()
+// Touch a file or directory
+func Touch(path string, isDir ...bool) error {
+	// process isDir, we don't allow > 1 arguments.
+	if len(isDir) > 1 {
+		return errors.New("isDir is a symbol indicating whether the path is a target directory. You shall not pass two arguments.")
 	}
-	return nil
-}
-
-// Remove remove a file
-func Remove(f string) error {
-	if _, err := os.Stat(f); os.IsNotExist(err) {
-		return fmt.Errorf("Error 1: %s doesn't exist.\n", f)
+	ok := false
+	if len(isDir) == 1 {
+		ok = isDir[0]
 	}
-	err := os.Remove(f)
+
+	_, err := os.Stat(path)
+
 	if err != nil {
-		return fmt.Errorf("Error 2: can not delete %s, patherr: %s.\n", f, err.Error())
+		if os.IsNotExist(err) {
+			if ok {
+				err := dirutil.MkdirP(path)
+				return err
+			}
+
+			dir := filepath.Dir(path)
+			if dir != "." {
+				err := dirutils.MkdirP(dir)
+				if err != nil {
+					fmt.Println("Can not create containing directory " + dir)
+					return error
+				}
+			}
+			f, err := os.Create(path)
+			defer f.Close()
+			if err != nil {
+				if os.IsPermission(err) {
+					fmt.Println("WARNING: no permission to create " + path + ", skipped...")
+					return nil
+				}
+				return err
+			}
+		} else {
+			return fmt.Errorf("Another unhandled non-IsNotExist PathError occurs: %s", err.Error())
+		}
 	}
+
 	return nil
 }
 

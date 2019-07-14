@@ -22,8 +22,29 @@ func Environ(env string) (string, error) {
 	return val, nil
 }
 
+func search(cmd string) (string, error) {
+	// the cmd definitely exists
+	f, _ := os.Stat(cmd)
+	if f.IsDir() {
+		return "", fmt.Errorf("%s is a directory", cmd)
+	}
+	if strings.Contains(f.Mode().Perm().String(), "-rwxr-") {
+		return cmd, nil
+	}
+	return "",f
+}
+
 // Search if an executable exists
 func Search(cmd string) (string, error) {
+  f, err := os.Stat(cmd)
+	if err != nil {
+		if os.IsNotExist(err) {
+      // add $PATH and try again
+		} else {
+			return "", fmt.Errof("Another unhandled non-IsNotExist PathError occurs %s", err.Error())
+		}
+	}
+
 	// whether to add path.
 	if filepath.Dir(cmd) == "." {
 		if _, err := os.Stat(cmd); os.IsNotExist(err) {
@@ -61,14 +82,17 @@ func Search(cmd string) (string, error) {
 
 // Run run command with options, returns output, ExitStatus and error
 func Run(cmd string, opts ...string) (string, int, error) {
-	out, err := exec.Command(cmd, opts...).Output()
-	status := 0
+	c, err := Search(cmd)
+	if err != nil {
+		return "", -1, err
+	}
+	out, err := exec.Command(c, opts...).Output()
 
-	fmt.Printf("Executing: %s %s\n", cmd, strings.Join(opts, " "))
+	fmt.Printf("Executing: %s %s\n", c, strings.Join(opts, " "))
 
 	if err != nil {
 		if msg, ok := err.(*exec.Error); ok {
-			return string(out), -1, fmt.Errorf(msg.Error())
+			return string(out), -1, err
 		}
 
 		if msg, ok := err.(*exec.ExitError); ok {
@@ -80,5 +104,5 @@ func Run(cmd string, opts ...string) (string, int, error) {
 		return string(out), -1, err
 	}
 
-	return string(out), status, nil
+	return string(out), 0, nil
 }
