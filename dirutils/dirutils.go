@@ -22,16 +22,16 @@ func (e ErrNonExistTarget) Error() string {
 func ReadSymlink(path string) (string, error) {
 	link, err := os.Readlink(path)
 	if err != nil {
-		return path, err
+		return "", err
 	}
 	if !filepath.IsAbs(link) {
 		link = filepath.Join(filepath.Dir(path), link)
 	}
-	info, err := os.Stat(link)
+	f, err := os.Stat(link)
 	if err != nil {
-		return link, ErrNonExistTarget{path, link}
+		return "", ErrNonExistTarget{path, link}
 	}
-	if info.Mode()&os.ModeSymlink != 0 {
+	if f.Mode()&os.ModeSymlink != 0 {
 		return ReadSymlink(link)
 	}
 	return link, nil
@@ -39,7 +39,7 @@ func ReadSymlink(path string) (string, error) {
 
 func ls(d string, kind string) ([]string, error) {
 	files := []string{}
-	e := filepath.Walk(string(d), func(path string, info os.FileInfo, err error) error {
+	e := filepath.Walk(d, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
 				fmt.Println("WARNING: no permission to visit " + path + ", skipped")
@@ -63,10 +63,7 @@ func ls(d string, kind string) ([]string, error) {
 					}
 					return err
 				}
-				f, err := os.Stat(link)
-				if err != nil {
-					return err
-				}
+				f, _ := os.Stat(link)
 				if f.IsDir() {
 					files = append(files, path)
 				}
@@ -90,10 +87,7 @@ func ls(d string, kind string) ([]string, error) {
 					}
 					return err
 				}
-				f, err := os.Stat(link)
-				if err != nil {
-					return err
-				}
+				f, _ := os.Stat(link)
 				if f.Mode().IsRegular() {
 					files = append(files, link)
 				}
@@ -129,18 +123,16 @@ func Ls(d string, kinds ...string) ([]string, error) {
 
 // MkdirP create directories for path
 func MkdirP(path string) error {
-	// FIXME filepath.Dir
-	p := filepath.Dir(path)
-	fmt.Println("Creating directory: " + p)
-	if _, err := os.Stat(p); os.IsNotExist(err) {
-		err := os.MkdirAll(p, os.ModeDir)
+	fmt.Println("Creating directory: " + path)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := os.MkdirAll(path, os.ModeDir)
 		if err != nil {
-			fmt.Println("Can not create directory " + p)
+			fmt.Println("Can not create directory " + path)
 			return err
 		}
-		fmt.Println(p + " created")
+		fmt.Println(path + " created")
 	} else {
-		fmt.Println(p + " exists already")
+		fmt.Println(path + " exists already")
 		return nil
 	}
 	return nil
