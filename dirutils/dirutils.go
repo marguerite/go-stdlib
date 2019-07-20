@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 )
 
 // ErrNonExistTarget ErrNonExistTarget is used to indicate the target a symlink points to actually does not exist on the filesystem.
@@ -16,6 +18,13 @@ type ErrNonExistTarget struct {
 
 func (e ErrNonExistTarget) Error() string {
 	return e.Path + "points to an non-existent target " + e.Link
+}
+
+func pathSeparator() string {
+	if runtime.GOOS == "windows" {
+		return "\\"
+	}
+	return "/"
 }
 
 // ReadSymlink follows the path of the symlink recursively and finds out the target it finally points to.
@@ -37,9 +46,58 @@ func ReadSymlink(path string) (string, error) {
 	return link, nil
 }
 
+// parse **/*, * and {,}
+func ParseWildcard(s string) (string, []*regexp.Regexp) {
+	r := []*regexp.Regexp{}
+	fn := func(p string) *regexp.Regexp {
+		p = strings.Replace(p, "**", "*", -1)
+		p = strings.Replace(p, "*"+pathSeparator()+"*", "*", -1)
+		p = strings.Replace(p, "*", ".*", -1)
+		p = strings.Replace(p, "\\", "\\\\", -1)
+		return regexp.MustCompile("^" + p + "$")
+	}
+
+	fn1 := func(p string) string {
+		if strings.HasSuffix(p, pathSeparator()) {
+			return p
+		}
+		return filepath.Dir(p)
+	}
+
+	// /usr/lib/xxx.{a, la}
+	re := regexp.MustCompile(`([^{]+){([^}]+)}(.*)?`)
+	m := re.FindStringSubmatch(s)
+	if len(m) != 0 {
+		for _, v := range strings.Split(m[2], ",") {
+			ns := m[1] + strings.TrimSpace(v)
+			if len(m[3]) != 0 {
+				ns += m[3]
+			}
+			r = append(r, fn(ns))
+		}
+		return fn1(m[1]), r
+	}
+	if strings.Contains(s, "*") {
+		r = append(r, fn(s))
+		return fn1(strings.Split(s, "*")[0]), r
+	}
+	return s, r
+}
+
 func ls(d string, kind string) ([]string, error) {
+	d1, _ := filepath.Abs(d)
+	dir, r := ParseWildcard(d1)
+
+	f, err := os.Stat(dir)
+	if err != nil {
+		return []string{}, err
+	}
+	if f.Mode().IsRegular() {
+		return []string{dir}, nil
+	}
+
 	files := []string{}
-	e := filepath.Walk(d, func(path string, info os.FileInfo, err error) error {
+	e := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
 				fmt.Println("WARNING: no permission to visit " + path + ", skipped")
@@ -47,6 +105,23 @@ func ls(d string, kind string) ([]string, error) {
 			}
 			return err
 		}
+
+		// filter
+		ok := false
+		if len(r) != 0 {
+			for _, re := range r {
+				if re.MatchString(path) {
+					ok = true
+				}
+			}
+		} else {
+			ok = true
+		}
+
+		if !ok {
+			return nil
+		}
+
 		switch kind {
 		case "dir":
 			if info.IsDir() {
@@ -138,7 +213,7 @@ func MkdirP(path string) error {
 	return nil
 }
 
-func parseRegexpPattern(re []*regexp.Regexp, pattern interface{}) []*regexp.Regexp {
+func parsePattern(re []*regexp.Regexp, pattern interface{}) []*regexp.Regexp {
 	switch v := pattern.(type) {
 	case *regexp.Regexp:
 		re = append(re, v)
@@ -172,12 +247,12 @@ func glob(dir string, pattern interface{}, fn func(string, ...string) ([]string,
 	}
 
 	re := []*regexp.Regexp{}
-	re = parseRegexpPattern(re, pattern)
+	re = parsePattern(re, pattern)
 	re1 := []*regexp.Regexp{}
 	if len(ex) > 0 {
 		// ex's type is []interface{}, need to assert to actual type first
 		for _, v := range ex {
-			re1 = parseRegexpPattern(re1, v)
+			re1 = parsePattern(re1, v)
 		}
 	}
 

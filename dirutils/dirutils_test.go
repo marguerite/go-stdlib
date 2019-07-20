@@ -2,16 +2,52 @@ package dirutils
 
 import (
 	"github.com/marguerite/util/slice"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"testing"
 )
 
 func TestLsFile(t *testing.T) {
-	if files, e := Ls("."); !reflect.DeepEqual(files, []string{"dirutils.go", "dirutils_test.go"}) || e != nil {
+	cwd, _ := os.Getwd()
+	if files, e := Ls("."); !reflect.DeepEqual(files, []string{filepath.Join(cwd, "dirutils.go"), filepath.Join(cwd, "dirutils_test.go")}) || e != nil {
 		t.Error("dirutils.Ls test failed.")
 	} else {
 		t.Log("dirutils.Ls test passed.")
+	}
+}
+
+func TestWildcard(t *testing.T) {
+	s := "/usr/lib/libutil.{a,    la}"
+	r := []*regexp.Regexp{regexp.MustCompile("/usr/lib/libutil.a"), regexp.MustCompile("/usr/lib/libutil.la")}
+	rs, rr := ParseWildcard(s)
+	if rs == "/usr/lib" && reflect.DeepEqual(r, rr) {
+		t.Log("ParseWildcard test succeed.")
+	} else {
+		t.Error("ParseWildcard test failed.")
+	}
+}
+
+func TestWildcard1(t *testing.T) {
+	s := "/usr/lib/libutil*"
+	r := []*regexp.Regexp{regexp.MustCompile("/usr/lib/libutil.*")}
+	rs, rr := ParseWildcard(s)
+	if rs == "/usr/lib" && reflect.DeepEqual(r, rr) {
+		t.Log("ParseWildcard test succeed.")
+	} else {
+		t.Error("ParseWildcard test failed.")
+	}
+}
+
+func TestWildcard2(t *testing.T) {
+	s := "/usr/lib/libutil.so"
+	r := []*regexp.Regexp{}
+	rs, rr := ParseWildcard(s)
+	if rs == s && reflect.DeepEqual(r, rr) {
+		t.Log("ParseWildcard test succeed.")
+	} else {
+		t.Error("ParseWildcard test failed.")
 	}
 }
 
