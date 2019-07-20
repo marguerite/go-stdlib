@@ -3,7 +3,7 @@ package fileutils
 import (
 	"errors"
 	"fmt"
-	"github.com/marguerite/dirutils"
+	"github.com/marguerite/util/dirutils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,7 +26,7 @@ func Touch(path string, isDir ...bool) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			if ok {
-				err := dirutil.MkdirP(path)
+				err := dirutils.MkdirP(path)
 				return err
 			}
 
@@ -35,7 +35,7 @@ func Touch(path string, isDir ...bool) error {
 				err := dirutils.MkdirP(dir)
 				if err != nil {
 					fmt.Println("Can not create containing directory " + dir)
-					return error
+					return err
 				}
 			}
 			f, err := os.Create(path)
@@ -55,50 +55,139 @@ func Touch(path string, isDir ...bool) error {
 	return nil
 }
 
-func Copy(src, dst string) error {
-	stat, err := os.Stat(src)
+func cp(f, dst, orig string) ([]string, error) {
+	// f always exists
+	fi, _ := os.Stat(f)
+	in, err := ioutil.ReadFile(f)
 	if err != nil {
-		return err
+		return []string{}, err
 	}
 
-	// source is a directory
-	if stat.IsDir() {
-		return fmt.Errorf("%s is a directory", src)
-	}
-
-	// source is a symlink
-	if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fmt.Printf("%s is a symlink, following the original one", src)
-		org, err := os.Readlink(src)
-		if err != nil {
-			return err
+	di, err := os.Stat(dst)
+	// just copy for non-existent target
+	if os.IsNotExist(err) {
+		err1 := ioutil.WriteFile(dst, in, fi.Mode())
+		if err1 != nil {
+			return []string{}, err1
 		}
-		src = org
+		return []string{dst}, nil
+	} else {
+		// dst here can only be file or dir because previous ReadSymlink in copy()
+		if di.Mode().IsDir() {
+			dst = filepath.Join(dst, filepath.Base(f))
+			err1 := ioutil.WriteFile(dst, in, fi.Mode())
+			if err1 != nil {
+				return []string{}, err1
+			}
+			return []string{dst}, nil
+		} else {
+			err1 := ioutil.WriteFile(dst, in, fi.Mode())
+			if err1 != nil {
+				return []string{}, err1
+			}
+			if len(orig) > 0 {
+				err1 = os.RemoveAll(orig)
+				if err1 != nil {
+					return []string{}, err1
+				}
+				err1 = os.Symlink(dst, orig)
+				if err1 != nil {
+					return []string{}, err1
+				}
+			}
+			return []string{dst}, nil
+		}
+	}
+	return []string{}, nil
+}
+
+func copy(f string, dst string, re []*regexp.Regexp, fn func(s, d, o string) ([]string, error)) ([]string, error) {
+	fi, err := os.Stat(f)
+	if err != nil {
+		fmt.Println(f + " to copy does not exist, please check again")
+		return []string{}, err
 	}
 
-	if info, err := os.Stat(dst); !os.IsNotExist(err) {
-		// dst is a directory
-		if info.IsDir() {
-			basename := filepath.Base(src)
-			dst = filepath.Join(dst, basename)
-		} else {
-			err = os.Remove(dst)
-			if err != nil {
-				return err
+	// file is a symlink, copy its original content
+	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fmt.Println(f + " is a symlink, copying the original file")
+		link, err := dirutils.ReadSymlink(f)
+		if err != nil {
+			return []string{}, err
+		}
+		info, _ := os.Stat(link)
+		fi = info
+		f = link
+	}
+
+	orig := ""
+	di, err := os.Stat(dst)
+	// dst exists and is a symlink
+	if !os.IsNotExist(err) && di.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fmt.Println(dst + " is a symlink, copy to its original file and symlink back")
+		orig = dst
+		link, err := dirutils.ReadSymlink(dst)
+		if err != nil {
+			return []string{}, err
+		}
+		info, _ := os.Stat(link)
+		di = info
+		dst = link
+	}
+
+	if fi.Mode().IsRegular() {
+		files, err1 := fn(f, dst, orig)
+		if err1 != nil {
+			return []string{}, err1
+		}
+		return files, nil
+	}
+	if fi.Mode().IsDir() {
+		if !di.Mode().IsDir() {
+			return []string{}, fmt.Errorf("Source is a directory, destination should be directory too")
+		}
+
+		files, err1 := dirutils.Ls(f)
+		if err1 != nil {
+			return []string{}, err1
+		}
+
+		res := []string{}
+		for _, v := range files {
+			ok := false
+			if len(re) > 0 {
+				for _, r := range re {
+					if r.MatchString(v) {
+						ok = true
+						break
+					}
+				}
+			} else {
+				ok = true
+			}
+
+			if !ok {
+				continue
+			}
+
+			copyed, err1 := fn(v, dst, orig)
+			if err1 != nil {
+				return []string{}, err1
+			}
+			for _, c := range copyed {
+				res = append(res, c)
 			}
 		}
+		return res, nil
 	}
+	return []string{}, fmt.Errorf("Unknown FileMode %v of source", fi)
+}
 
-	in, err := ioutil.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(dst, in, stat.Mode())
-	if err != nil {
-		return err
-	}
-	return nil
+// Copy like Linux's cp command, copy a file/dirctory to another place.
+func Copy(src, dst string) error {
+	f, r := dirutils.ParseWildcard(src)
+	_, err := copy(f, dst, r, cp)
+	return err
 }
 
 // HasPrefixSuffixInGroup if a string's prefix/suffix matches one in group
