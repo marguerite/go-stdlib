@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"github.com/marguerite/util/dirutils"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"strings"
 )
 
 // Touch a file or directory
@@ -190,22 +193,47 @@ func Copy(src, dst string) error {
 	return err
 }
 
-// HasPrefixSuffixInGroup if a string's prefix/suffix matches one in group
-// b trigger's prefix match
-func HasPrefixSuffixInGroup(s string, group []string, b bool) bool {
-	prefix := "(?i)"
-	suffix := ""
-	if b {
-		prefix += "^"
-	} else {
-		suffix += "$"
+//HasPrefixOrSuffix Check if str has prefix or suffix provided by the variadic slice
+// the slice can be []string or [][]string, which means you can group prefixes and suffixes
+// >0 means prefix, <0 means suffix, ==0 means no match.
+func HasPrefixOrSuffix(str string, ends ...interface{}) int {
+	if len(ends) == 0 {
+		return 0
 	}
 
-	for _, v := range group {
-		re := regexp.MustCompile(prefix + regexp.QuoteMeta(v) + suffix)
-		if re.MatchString(s) {
-			return true
+	testK := reflect.ValueOf(ends[0]).Kind()
+
+	if testK == reflect.String {
+		// ends is a slice of string, just test prefix or suffix
+		for _, v := range ends {
+			s := reflect.ValueOf(v).String()
+			if strings.HasPrefix(str, s) {
+				return 1
+			}
+			if strings.HasSuffix(str, s) {
+				return -1
+			}
+		}
+		return 0
+	}
+
+	if testK == reflect.Array || testK == reflect.Slice {
+		for _, end := range ends {
+			v := reflect.ValueOf(end)
+			if v.Index(0).Kind() != reflect.String {
+				log.Fatal("You must provide a slice of string, or a slice of string slice to check prefix/suffix against the provided string.")
+			}
+			for i := 0; i < v.Len(); i++ {
+				s := v.Index(i).String()
+				if strings.HasPrefix(str, s) {
+					return 1
+				}
+				if strings.HasSuffix(str, s) {
+					return -1
+				}
+			}
 		}
 	}
-	return false
+
+	return 0
 }
