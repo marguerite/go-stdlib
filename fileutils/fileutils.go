@@ -16,33 +16,22 @@ import (
 func Touch(path string) error {
 	_, err := os.Stat(path)
 
-	if err != nil {
-		if os.IsNotExist(err) {
-			// create containing directory
-			d := filepath.Dir(path)
-			if d != "." {
-				if _, err1 := os.Stat(d); err1 != nil {
-					if os.IsNotExist(err1) {
-						err2 := dir.MkdirP(d)
-						if err2 != nil {
-							fmt.Printf("Can not create containing directory %s.\n", d)
-							return err2
-						}
-					} else {
-						return err1
-					}
-				}
-			}
-			f, err1 := os.Create(path)
-			defer f.Close()
-			if err1 != nil {
-				return err1
-			}
-		} else {
+	if err == nil {
+		return err
+	}
+	if os.IsNotExist(err) {
+		// create containing directory
+		parent := filepath.Dir(path)
+		err = dir.MkdirP(parent)
+		if err != nil {
+			return err
+		}
+		_, err = os.Create(path)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+	return err
 }
 
 //cp copy a single file to another file or directory
