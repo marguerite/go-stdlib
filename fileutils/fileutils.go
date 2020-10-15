@@ -1,234 +1,228 @@
 package fileutils
 
 import (
-	"errors"
 	"fmt"
-	"github.com/marguerite/util/dirutils"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
+
+	"github.com/marguerite/util/dir"
+	"github.com/marguerite/util/pattern"
 )
 
-// Touch a file or directory
-func Touch(path string, isDir ...bool) error {
-	// process isDir, we don't allow > 1 arguments.
-	if len(isDir) > 1 {
-		return errors.New("isDir is a symbol indicating whether the path is a target directory. You shall not pass two arguments.")
-	}
-	ok := false
-	if len(isDir) == 1 {
-		ok = isDir[0]
-	}
-
+//Touch touch a file
+func Touch(path string) error {
 	_, err := os.Stat(path)
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			if ok {
-				err := dirutils.MkdirP(path)
-				return err
-			}
-
-			dir := filepath.Dir(path)
-			if dir != "." {
-				err := dirutils.MkdirP(dir)
-				if err != nil {
-					fmt.Println("Can not create containing directory " + dir)
-					return err
+			// create containing directory
+			d := filepath.Dir(path)
+			if d != "." {
+				if _, err1 := os.Stat(d); err1 != nil {
+					if os.IsNotExist(err1) {
+						err2 := dir.MkdirP(d)
+						if err2 != nil {
+							fmt.Printf("Can not create containing directory %s.\n", d)
+							return err2
+						}
+					} else {
+						return err1
+					}
 				}
 			}
-			f, err := os.Create(path)
+			f, err1 := os.Create(path)
 			defer f.Close()
-			if err != nil {
-				if os.IsPermission(err) {
-					fmt.Println("WARNING: no permission to create " + path + ", skipped...")
-					return nil
-				}
-				return err
+			if err1 != nil {
+				return err1
 			}
 		} else {
-			return fmt.Errorf("Another unhandled non-IsNotExist PathError occurs: %s", err.Error())
+			return err
 		}
 	}
-
 	return nil
 }
 
-func cp(f, dst, orig string) ([]string, error) {
-	// f always exists
-	fi, _ := os.Stat(f)
-	in, err := ioutil.ReadFile(f)
+//cp copy a single file to another file or directory
+func cp(source, destination, original string) error {
+	// source always exists and can be file only
+	s, err := ioutil.ReadFile(source)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 
-	di, err := os.Stat(dst)
-	// just copy for non-existent target
+	// destination can be non-existent target, file or directory.
+	di, err := os.Stat(destination)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if err == nil && di.Mode().IsDir() {
+		destination = filepath.Join(destination, filepath.Base(source))
+		original = ""
+	}
+
 	if os.IsNotExist(err) {
-		err1 := ioutil.WriteFile(dst, in, fi.Mode())
-		if err1 != nil {
-			return []string{}, err1
-		}
-		return []string{dst}, nil
-	} else {
-		// dst here can only be file or dir because previous ReadSymlink in copy()
-		if di.Mode().IsDir() {
-			dst = filepath.Join(dst, filepath.Base(f))
-			err1 := ioutil.WriteFile(dst, in, fi.Mode())
-			if err1 != nil {
-				return []string{}, err1
-			}
-			return []string{dst}, nil
-		} else {
-			err1 := ioutil.WriteFile(dst, in, fi.Mode())
-			if err1 != nil {
-				return []string{}, err1
-			}
-			if len(orig) > 0 {
-				err1 = os.RemoveAll(orig)
-				if err1 != nil {
-					return []string{}, err1
-				}
-				err1 = os.Symlink(dst, orig)
-				if err1 != nil {
-					return []string{}, err1
-				}
-			}
-			return []string{dst}, nil
+		err = dir.MkdirP(filepath.Dir(destination))
+		if err != nil {
+			return err
 		}
 	}
-	return []string{}, nil
+
+	fi, _ := os.Stat(source)
+	err = ioutil.WriteFile(destination, s, fi.Mode())
+	if err != nil {
+		return err
+	}
+
+	if len(original) > 0 {
+		err := os.RemoveAll(original)
+		if err != nil {
+			return err
+		}
+		err = os.Symlink(destination, original)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func copy(f string, dst string, re []*regexp.Regexp, fn func(s, d, o string) ([]string, error)) ([]string, error) {
-	fi, err := os.Stat(f)
+func copy(source, destination string, fn func(s, d, o string) error) error {
+	// check source status
+	si, err := os.Stat(source)
 	if err != nil {
-		fmt.Println(f + " to copy does not exist, please check again")
-		return []string{}, err
+		return err
 	}
 
-	// file is a symlink, copy its original content
-	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fmt.Println(f + " is a symlink, copying the original file")
-		link, err := dirutils.ReadSymlink(f)
+	// source is a symlink, copy its original content
+	if si.Mode()&os.ModeSymlink != 0 {
+		link, err := dir.FollowSymlink(source)
 		if err != nil {
-			return []string{}, err
+			return err
 		}
-		info, _ := os.Stat(link)
-		fi = info
-		f = link
+		tmp, _ := os.Stat(link)
+		si = tmp
+		source = link
 	}
 
-	orig := ""
-	di, err := os.Stat(dst)
-	// dst exists and is a symlink
-	if !os.IsNotExist(err) && di.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fmt.Println(dst + " is a symlink, copy to its original file and symlink back")
-		orig = dst
-		link, err := dirutils.ReadSymlink(dst)
+	// check destination status
+	di, err := os.Stat(destination)
+	// destination can be non-existent target
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	var orig string
+
+	if err == nil && di.Mode()&os.ModeSymlink != 0 {
+		// copy to its original file and symlink back
+		link, err := dir.FollowSymlink(destination)
 		if err != nil {
-			return []string{}, err
+			return err
 		}
-		info, _ := os.Stat(link)
-		di = info
-		dst = link
+		orig = destination
+		destination = link
 	}
 
-	if fi.Mode().IsRegular() {
-		files, err1 := fn(f, dst, orig)
-		if err1 != nil {
-			return []string{}, err1
+	// copy single file
+	if si.Mode().IsRegular() {
+		err := fn(source, destination, orig)
+		if err != nil {
+			return err
 		}
-		return files, nil
+		return nil
 	}
-	if fi.Mode().IsDir() {
-		if !di.Mode().IsDir() {
-			return []string{}, fmt.Errorf("Source is a directory, destination should be directory too")
+	// copy directory
+	if si.Mode().IsDir() {
+		// files can be symlink or actual file
+		files, err := dir.Ls(source, true, true)
+		if err != nil {
+			return err
 		}
 
-		files, err1 := dirutils.Ls(f)
-		if err1 != nil {
-			return []string{}, err1
-		}
-
-		res := []string{}
-		for _, v := range files {
-			ok := false
-			if len(re) > 0 {
-				for _, r := range re {
-					if r.MatchString(v) {
-						ok = true
-						break
-					}
-				}
-			} else {
-				ok = true
-			}
-
-			if !ok {
+		for _, f := range files {
+			fi, err := os.Stat(f)
+			if err != nil {
+				// skipped
 				continue
 			}
 
-			copyed, err1 := fn(v, dst, orig)
-			if err1 != nil {
-				return []string{}, err1
+			// keep hierarchy
+			p, _ := filepath.Rel(source, filepath.Dir(f))
+			dest := filepath.Join(destination, p, filepath.Base(f))
+
+			// f is a symlink, copy its original content
+			if fi.Mode()&os.ModeSymlink != 0 {
+				link, err := dir.FollowSymlink(f)
+				if err != nil {
+					continue
+				}
+				f = link
 			}
-			for _, c := range copyed {
-				res = append(res, c)
+
+			err = fn(f, dest, "")
+			if err != nil {
+				return err
 			}
 		}
-		return res, nil
+		return nil
 	}
-	return []string{}, fmt.Errorf("Unknown FileMode %v of source", fi)
+	return fmt.Errorf("source %s has unknown filemode %v", source, si)
 }
 
 // Copy like Linux's cp command, copy a file/dirctory to another place.
-func Copy(src, dst string) error {
-	f, r := dirutils.ParseWildcard(src)
-	_, err := copy(f, dst, r, cp)
-	return err
+func Copy(src, dest string) error {
+	sources := pattern.Expand(src)
+	for _, v := range sources {
+		err := copy(v, dest, cp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-//HasPrefixOrSuffix Check if str has prefix or suffix provided by the variadic slice
+//HasPrefixOrSuffix Check if string s has prefix or suffix provided by the variadic slice
 // the slice can be []string or [][]string, which means you can group prefixes and suffixes
 // >0 means prefix, <0 means suffix, ==0 means no match.
-func HasPrefixOrSuffix(str string, ends ...interface{}) int {
-	if len(ends) == 0 {
+func HasPrefixOrSuffix(s string, seps ...interface{}) int {
+	if len(seps) == 0 {
 		return 0
 	}
 
-	testK := reflect.ValueOf(ends[0]).Kind()
+	sepKd := reflect.ValueOf(seps[0]).Kind()
 
-	if testK == reflect.String {
-		// ends is a slice of string, just test prefix or suffix
-		for _, v := range ends {
-			s := reflect.ValueOf(v).String()
-			if strings.HasPrefix(str, s) {
+	if sepKd == reflect.String {
+		// seps is a slice of string, just test prefix or suffix
+		for _, sep := range seps {
+			sepS := reflect.ValueOf(sep).String()
+			if strings.HasPrefix(s, sepS) {
 				return 1
 			}
-			if strings.HasSuffix(str, s) {
+			if strings.HasSuffix(s, sepS) {
 				return -1
 			}
 		}
 		return 0
 	}
 
-	if testK == reflect.Array || testK == reflect.Slice {
-		for _, end := range ends {
-			v := reflect.ValueOf(end)
+	if sepKd == reflect.Array || sepKd == reflect.Slice {
+		for _, sep := range seps {
+			v := reflect.ValueOf(sep)
 			if v.Index(0).Kind() != reflect.String {
-				log.Fatal("You must provide a slice of string, or a slice of string slice to check prefix/suffix against the provided string.")
+				fmt.Println("You must provide a slice of string, or a slice of string slice to check prefix/suffix against the provided string.")
+				os.Exit(1)
 			}
 			for i := 0; i < v.Len(); i++ {
-				s := v.Index(i).String()
-				if strings.HasPrefix(str, s) {
+				sepS := v.Index(i).String()
+				if strings.HasPrefix(s, sepS) {
 					return 1
 				}
-				if strings.HasSuffix(str, s) {
+				if strings.HasSuffix(s, sepS) {
 					return -1
 				}
 			}
