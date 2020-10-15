@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	"github.com/marguerite/util/dir"
 	"github.com/marguerite/util/pattern"
@@ -173,50 +171,4 @@ func Copy(src, dest string) error {
 		}
 	}
 	return nil
-}
-
-//HasPrefixOrSuffix Check if string s has prefix or suffix provided by the variadic slice
-// the slice can be []string or [][]string, which means you can group prefixes and suffixes
-// >0 means prefix, <0 means suffix, ==0 means no match.
-func HasPrefixOrSuffix(s string, seps ...interface{}) int {
-	if len(seps) == 0 {
-		return 0
-	}
-
-	sepKd := reflect.ValueOf(seps[0]).Kind()
-
-	if sepKd == reflect.String {
-		// seps is a slice of string, just test prefix or suffix
-		for _, sep := range seps {
-			sepS := reflect.ValueOf(sep).String()
-			if strings.HasPrefix(s, sepS) {
-				return 1
-			}
-			if strings.HasSuffix(s, sepS) {
-				return -1
-			}
-		}
-		return 0
-	}
-
-	if sepKd == reflect.Array || sepKd == reflect.Slice {
-		for _, sep := range seps {
-			v := reflect.ValueOf(sep)
-			if v.Index(0).Kind() != reflect.String {
-				fmt.Println("You must provide a slice of string, or a slice of string slice to check prefix/suffix against the provided string.")
-				os.Exit(1)
-			}
-			for i := 0; i < v.Len(); i++ {
-				sepS := v.Index(i).String()
-				if strings.HasPrefix(s, sepS) {
-					return 1
-				}
-				if strings.HasSuffix(s, sepS) {
-					return -1
-				}
-			}
-		}
-	}
-
-	return 0
 }

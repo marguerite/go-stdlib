@@ -2,8 +2,14 @@ package slice
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"reflect"
+)
+
+var (
+	ErrNotSlice    = errors.New("Not a slice")
+	ErrNotPointer  = errors.New("Not a pointer type")
+	ErrNotSameType = errors.New("Not the same type")
 )
 
 /*Contains takes a source Slice/Array and an element that can be
@@ -24,8 +30,8 @@ func Contains(src interface{}, element interface{}) (bool, error) {
 		ev = reflect.ValueOf(element)
 	}
 
-	if err := isSlice(sv); err != nil {
-		return false, err
+	if !isSlice(sv) {
+		return false, ErrNotSlice
 	}
 
 	if ev.Kind() == reflect.Slice || ev.Kind() == reflect.Array {
@@ -52,8 +58,8 @@ func shortest(src interface{}) (interface{}, error) {
 	sv := reflect.ValueOf(src)
 	var shortest interface{}
 
-	if err := isSlice(sv); err != nil {
-		return shortest, err
+	if !isSlice(sv) {
+		return shortest, ErrNotSlice
 	}
 
 	for i := 0; i < sv.Len(); i++ {
@@ -102,14 +108,14 @@ func Remove(src interface{}, element interface{}) error {
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	} else {
-		return fmt.Errorf("%v is not a pointer type", src)
+		return ErrNotPointer
 	}
 
-	if err := isSlice(sv); err != nil {
-		return err
+	if !isSlice(sv) {
+		return ErrNotSlice
 	}
 
-	if err := isSlice(ev); err == nil {
+	if isSlice(ev) {
 		for i := 0; i < ev.Len(); i++ {
 			e := Remove(src, ev.Index(i))
 			if e != nil {
@@ -128,7 +134,7 @@ func Remove(src interface{}, element interface{}) error {
 			sv.Set(tmp)
 			return nil
 		}
-		return fmt.Errorf("%v's element and %v are different types", src, element)
+		return ErrNotSameType
 	}
 	return nil
 }
@@ -139,11 +145,11 @@ func Unique(src interface{}) error {
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	} else {
-		return fmt.Errorf("%v is not a pointer type", src)
+		return ErrNotPointer
 	}
 
-	if err := isSlice(sv); err != nil {
-		return err
+	if !isSlice(sv) {
+		return ErrNotSlice
 	}
 
 	m := make(map[interface{}]struct{})
@@ -172,12 +178,12 @@ func Intersect(src interface{}, dst interface{}) error {
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	} else {
-		return fmt.Errorf("%v is not a pointer type", src)
+		return ErrNotPointer
 	}
 
 	for _, v := range []reflect.Value{sv, dv} {
-		if err := isSlice(v); err != nil {
-			return err
+		if !isSlice(v) {
+			return ErrNotSlice
 		}
 	}
 
@@ -208,11 +214,11 @@ func Concat(src interface{}, dst interface{}) error {
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	} else {
-		return fmt.Errorf("%v is not a pointer type", src)
+		return ErrNotPointer
 	}
 
-	if err := isSlice(sv); err != nil {
-		return err
+	if !isSlice(sv) {
+		return ErrNotSlice
 	}
 
 	m := make(map[interface{}]struct{})
@@ -234,19 +240,19 @@ func Concat(src interface{}, dst interface{}) error {
 			}
 			return nil
 		}
-		return fmt.Errorf("%v's element and %v are different types", src, dst)
+		return ErrNotSameType
 	}
 	return nil
 }
 
 // Replace replace the old element in slice with the new one
-func Replace(slice, old, new interface{}) error {
-	sv := reflect.ValueOf(slice)
+func Replace(s, old, new interface{}) error {
+	sv := reflect.ValueOf(s)
 	nv := reflect.ValueOf(new)
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
 	} else {
-		return fmt.Errorf("%v is not a pointer type", slice)
+		return ErrNotPointer
 	}
 
 	var ov reflect.Value
@@ -258,7 +264,7 @@ func Replace(slice, old, new interface{}) error {
 	}
 
 	if sv.Type().Elem().Kind() != nv.Kind() {
-		return fmt.Errorf("the type of the replacement differs with the element in slice %v", slice)
+		return ErrNotSameType
 	}
 
 	for i := 0; i < sv.Len(); i++ {
@@ -315,11 +321,11 @@ func genKey(v reflect.Value) interface{} {
 	return k
 }
 
-func isSlice(v reflect.Value) error {
+func isSlice(v reflect.Value) bool {
 	if v.Kind() == reflect.Slice {
-		return nil
+		return true
 	}
-	return fmt.Errorf("%v is not a valid slice", v)
+	return false
 }
 
 func removeFromSlice(idx []int, v reflect.Value) reflect.Value {
