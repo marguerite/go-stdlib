@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/marguerite/util/pattern"
+	"github.com/marguerite/go-stdlib/pattern"
 )
 
 // FollowSymlink follows the path of the symlink recursively and finds out the target it finally points to.

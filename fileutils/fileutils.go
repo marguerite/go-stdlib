@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/marguerite/util/dir"
-	"github.com/marguerite/util/pattern"
+	"github.com/marguerite/go-stdlib/dir"
+	"github.com/marguerite/go-stdlib/pattern"
 )
 
 //Touch touch a file

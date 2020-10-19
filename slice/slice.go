@@ -54,31 +54,30 @@ func Contains(src interface{}, element interface{}) (bool, error) {
 	return false, nil
 }
 
-func shortest(src interface{}) (interface{}, error) {
+func shortest(src interface{}) (dst interface{}, err error) {
 	sv := reflect.ValueOf(src)
-	var shortest interface{}
 
 	if !isSlice(sv) {
-		return shortest, ErrNotSlice
+		return dst, ErrNotSlice
 	}
 
 	for i := 0; i < sv.Len(); i++ {
-		if shortest == nil {
-			shortest = sv.Index(i).Interface()
+		if dst == nil {
+			dst = sv.Index(i).Interface()
 			continue
 		}
 		if sv.Index(i).Kind() == reflect.String {
-			if sv.Index(i).Len() < len(reflect.ValueOf(shortest).String()) {
-				shortest = sv.Index(i).Interface()
+			if sv.Index(i).Len() < len(reflect.ValueOf(dst).String()) {
+				dst = sv.Index(i).Interface()
 			}
 		}
 		if sv.Index(i).Kind() == reflect.Int {
-			if sv.Index(i).Int() < reflect.ValueOf(shortest).Int() {
-				shortest = sv.Index(i).Interface()
+			if sv.Index(i).Int() < reflect.ValueOf(dst).Int() {
+				dst = sv.Index(i).Interface()
 			}
 		}
 	}
-	return shortest, nil
+	return dst, err
 }
 
 // ShortestString find the shortest string in string slice
@@ -246,8 +245,8 @@ func Concat(src interface{}, dst interface{}) error {
 }
 
 // Replace replace the old element in slice with the new one
-func Replace(s, old, new interface{}) error {
-	sv := reflect.ValueOf(s)
+func Replace(src, old, new interface{}) error {
+	sv := reflect.ValueOf(src)
 	nv := reflect.ValueOf(new)
 	if sv.Kind() == reflect.Ptr {
 		sv = sv.Elem()
