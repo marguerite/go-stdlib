@@ -138,6 +138,11 @@ func copy(source, destination string, fn func(s, d, o string) error) error {
 				continue
 			}
 
+			if fi.Mode().IsDir() {
+				// skip directory, they'll be created in cp function
+				continue
+			}
+
 			// keep hierarchy
 			p, _ := filepath.Rel(source, filepath.Dir(f))
 			dest := filepath.Join(destination, p, filepath.Base(f))
