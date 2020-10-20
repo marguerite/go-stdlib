@@ -7,14 +7,14 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/marguerite/util/slice"
+	"github.com/marguerite/go-stdlib/slice"
 )
 
 func TestLs(t *testing.T) {
 	cwd, _ := os.Getwd()
-	correct := []string{filepath.Join(cwd, "dir_test.go"), filepath.Join(cwd, "dir.go")}
+	correct := []string{filepath.Join(cwd, "dir.go"), filepath.Join(cwd, "dir_test.go")}
 	if files, err := Ls(cwd, true, true); !reflect.DeepEqual(files, correct) || err != nil {
-		t.Errorf("[dir]Ls test failed, expecting %s, got %s, err %s", correct, files, err)
+		t.Errorf("[dir]Ls test failed, expecting %s, got %s, err %v", correct, files, err)
 	}
 }
 

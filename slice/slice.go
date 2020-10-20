@@ -12,12 +12,10 @@ var (
 	ErrNotSameType = errors.New("Not the same type")
 )
 
-/*Contains takes a source Slice/Array and an element that can be
-  slice/Array or of a single value type, with/of the same type as
-	elements in source Slice/Array do.
-
-  If the source Slice/Array contains the single element or any
-	element in the provided Slice/Array, it will return true.*/
+// Contains takes a source Slice/Array and an element that can be slice/Array
+// or a single value type of the same type as elements in source Slice/Array.
+// If the source Slice/Array contains the single element or any element in
+// the provided Slice/Array, it will return true.
 func Contains(src interface{}, element interface{}) (bool, error) {
 	sv := reflect.ValueOf(src)
 
@@ -86,13 +84,11 @@ func ShortestString(src []string) (string, error) {
 	return s.(string), e
 }
 
-/*Remove takes a pointer to slice as source and an element that
-  can be slice or of any single value type, with/of the same type
-  as the elements in the source slice do.
-
-	It will remove the single element or elements in the provided slice
-	from the source slice.
-*/
+// Remove takes a pointer to slice as source and an element that
+// can be slice or single value type of the same type as the
+// elements in the source slice.
+// It will remove the single element or elements in the provided
+// slice from the source slice
 func Remove(src interface{}, element interface{}) error {
 	sv := reflect.ValueOf(src)
 	// no need to reflect a reflect.Value again, will return a struct Kind()
@@ -298,7 +294,7 @@ func Flatten(slice interface{}) (interface{}, error) {
 				if s.Index(pos).CanSet() {
 					s.Index(pos).Set(v)
 				}
-				pos += 1
+				pos++
 			}
 		}
 		return s.Interface(), nil
@@ -335,7 +331,7 @@ func removeFromSlice(idx []int, v reflect.Value) reflect.Value {
 		for _, j := range idx {
 			if j == i {
 				has = true
-				n += 1
+				n++
 				break
 			}
 		}

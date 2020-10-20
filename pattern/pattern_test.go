@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/marguerite/util/slice"
+	"github.com/marguerite/go-stdlib/slice"
 )
 
 // **/*/?/{}/[]/\\

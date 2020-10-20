@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 
 	"github.com/marguerite/go-stdlib/pattern"
 )
@@ -41,67 +42,75 @@ func Ls(directory string, symlink, recursive bool, kind ...string) (files []stri
 	for _, v := range directories {
 		f, err := os.Open(v)
 
-		if err == nil {
-			i, err := f.Stat()
-			if err != nil {
-				return files, err
-			}
+		if err != nil {
+			f.Close()
+			continue
+		}
 
-			if i.Mode()&os.ModeSymlink != 0 {
-				if !symlink {
-					// skip
-					f.Close()
-					continue
-				}
-				// redirect f to actual file
-				link, err := FollowSymlink(v)
-				f.Close()
-				if err != nil {
-					return files, err
-				}
-				f, err = os.Open(link)
-				if err != nil {
-					f.Close()
-					return files, err
-				}
-			}
+		i, err := f.Stat()
+		if err != nil {
+			f.Close()
+			return files, err
+		}
 
-			if i.Mode().IsDir() {
-				items, err := f.Readdir(-1)
-				if err != nil {
-					f.Close()
-					return files, err
-				}
-				for _, j := range items {
-					path := filepath.Join(v, j.Name())
-
-					if j.IsDir() {
-						files = append(files, path)
-					} else if len(kind) == 0 {
-						files = append(files, path)
-					}
-
-					if recursive && j.IsDir() {
-						subfiles, err := Ls(path, symlink, recursive, kind...)
-						if err != nil {
-							return files, err
-						}
-						for _, sub := range subfiles {
-							files = append(files, sub)
-						}
-					}
-				}
+		if i.Mode()&os.ModeSymlink != 0 {
+			if !symlink {
+				// skip
 				f.Close()
 				continue
 			}
-
-			if len(kind) == 0 {
-				files = append(files, v)
+			// redirect f to actual file
+			link, err := FollowSymlink(v)
+			f.Close()
+			if err != nil {
+				return files, err
 			}
+			f, err = os.Open(link)
+			if err != nil {
+				f.Close()
+				return files, err
+			}
+		}
+
+		if i.Mode().IsDir() {
+			items, err := f.Readdir(-1)
+			if err != nil {
+				f.Close()
+				return files, err
+			}
+
+			for _, j := range items {
+				path := filepath.Join(v, j.Name())
+
+				if j.IsDir() {
+					files = append(files, path)
+				} else if len(kind) == 0 {
+					files = append(files, path)
+				}
+
+				if recursive && j.IsDir() {
+					subfiles, err := Ls(path, symlink, recursive, kind...)
+					if err != nil {
+						f.Close()
+						return files, err
+					}
+					for _, sub := range subfiles {
+						files = append(files, sub)
+					}
+				}
+			}
+			f.Close()
+			continue
+		}
+
+		if len(kind) == 0 {
+			files = append(files, v)
 		}
 
 		f.Close()
 	}
+
+	sort.Strings(files)
 
 	return files, nil
 }
