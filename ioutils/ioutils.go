@@ -9,6 +9,7 @@ import (
 // NewReaderFromFile return an io.Reader from file
 func NewReaderFromFile(file string) *bytes.Reader {
 	f, err := os.Open(file)
+  defer f.Close()
 	if err != nil {
 		panic(err)
 	}

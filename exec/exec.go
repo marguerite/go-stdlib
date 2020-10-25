@@ -47,8 +47,20 @@ func Search(cmd string) (val string, err error) {
 }
 
 // Exec3 run command with options, returns stdout, ExitStatus and error
-func Exec3(cmd string, options ...string) (out []byte, exit int, err error) {
-	out, err = exec.Command(cmd, options...).Output()
+func Exec3(cmd string, options ...string) ([]byte, int, error) {
+	env := os.Environ()
+	return run(cmd, env, options...)
+}
+
+// Exec3WithEnv same as Exec3 but can assign environment variable
+func Exec3WithEnv(cmd string, env []string, options ...string) ([]byte, int, error) {
+	return run(cmd, env, options...)
+}
+
+func run(cmd string, env []string, options ...string) (out []byte, exit int, err error) {
+	command := exec.Command(cmd, options...)
+	command.Env = env
+	out, err = command.Output()
 
 	if err == nil {
 		return out, 0, err
