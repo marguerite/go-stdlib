@@ -1,13 +1,11 @@
 package runtime
 
 import (
-	"bufio"
 	"os/exec"
 	"runtime"
 	"strings"
 
 	cmd "github.com/marguerite/go-stdlib/exec"
-	"github.com/marguerite/go-stdlib/ioutils"
 )
 
 // Is64Bit if the operation system is 64bit system
@@ -30,16 +28,4 @@ func LogName() string {
 		return env
 	}
 	return string(out)
-}
-
-// LinuxDistribution query /etc/os-release and return the distribution name
-func LinuxDistribution() (distribution string) {
-	scanner := bufio.NewScanner(ioutils.NewReaderFromFile("/etc/os-release"))
-	pretty := "PRETTY_NAME=\""
-	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), pretty) {
-			distribution = strings.ReplaceAll(strings.ReplaceAll(scanner.Text(), pretty, ""), "\"", "")
-		}
-	}
-	return distribution
 }
