@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	geoip2 "github.com/oschwald/geoip2-golang"
 )
 
 var (
@@ -60,19 +59,4 @@ func LocalIPAddress() (string, error) {
 		}
 	}
 	return "", ErrNotConnected
-}
-
-func GeoIP(addr string, geoDB []byte) (country string, latitude float64, longitude float64, err error) {
-	db, err := geoip2.FromBytes(geoDB)
-	if err != nil {
-		return country, latitude, longitude, err
-	}
-	defer db.Close()
-
-	ip := net.ParseIP(addr)
-	record, err := db.City(ip)
-	if err != nil {
-		return country, latitude, longitude, err
-	}
-	return record.Country.Names["en"], record.Location.Latitude, record.Location.Longitude, nil
 }
