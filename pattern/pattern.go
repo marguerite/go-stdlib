@@ -12,12 +12,12 @@ func toRegex(s string) *regexp.Regexp {
 		return regexp.MustCompile(`^.*$`)
 	}
 	// escape the dots first
-	s = strings.ReplaceAll(s, ".", "\\.")
-	s = strings.ReplaceAll(s, "?", ".")
-	s = strings.ReplaceAll(s, "*", ".*")
-	s = strings.ReplaceAll(s, "{", "(")
-	s = strings.ReplaceAll(s, ",", "|")
-	s = strings.ReplaceAll(s, "}", ")")
+	s = strings.Replace(s, ".", "\\.", -1)
+	s = strings.Replace(s, "?", ".", -1)
+	s = strings.Replace(s, "*", ".*", -1)
+	s = strings.Replace(s, "{", "(", -1)
+	s = strings.Replace(s, ",", "|", -1)
+	s = strings.Replace(s, "}", ")", -1)
 	return regexp.MustCompile("^" + s + "$")
 }
 

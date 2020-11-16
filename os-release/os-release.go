@@ -16,7 +16,7 @@ func (release *OsRelease) init() {
 	scanner := bufio.NewScanner(bytes.NewReader(f))
 	for scanner.Scan() {
 		arr := strings.Split(scanner.Text(), "=")
-		(*release)[strings.ToLower(arr[0])] = strings.ReplaceAll(arr[1], "\"", "")
+		(*release)[strings.ToLower(arr[0])] = strings.Replace(arr[1], "\"", "", -1)
 	}
 }
 
