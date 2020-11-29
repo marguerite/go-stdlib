@@ -5,7 +5,8 @@ import (
 	"runtime"
 	"strings"
 
-	cmd "github.com/marguerite/go-stdlib/exec"
+  //"github.com/ericlagergren/go-gnulib/login"
+  "github.com/marguerite/go-gnulib/login"
 )
 
 // Is64Bit if the operation system is 64bit system
@@ -17,15 +18,11 @@ func Is64Bit() bool {
 	return false
 }
 
-// LogName the current log in user's name
+// LogName the current login user's name
 func LogName() string {
-	out, err := exec.Command("/usr/bin/logname").Output()
-	if err != nil {
-		env, err := cmd.Env("LOGNAME")
-		if err != nil {
-			return ""
-		}
-		return env
-	}
-	return string(out)
+  name, err := login.GetLogin()
+  if err != nil {
+    panic(err)
+  }
+  return name
 }
