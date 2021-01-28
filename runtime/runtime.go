@@ -1,12 +1,11 @@
 package runtime
 
 import (
-	"os/exec"
 	"runtime"
 	"strings"
 
-  //"github.com/ericlagergren/go-gnulib/login"
-  "github.com/marguerite/go-gnulib/login"
+	//"github.com/ericlagergren/go-gnulib/login"
+	"github.com/marguerite/go-gnulib/login"
 )
 
 // Is64Bit if the operation system is 64bit system
@@ -20,9 +19,9 @@ func Is64Bit() bool {
 
 // LogName the current login user's name
 func LogName() string {
-  name, err := login.GetLogin()
-  if err != nil {
-    panic(err)
-  }
-  return name
+	name, err := login.GetLogin()
+	if err != nil {
+		panic(err)
+	}
+	return name
 }
