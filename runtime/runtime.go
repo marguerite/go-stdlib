@@ -1,11 +1,12 @@
 package runtime
 
 import (
+	"bytes"
 	"runtime"
 	"strings"
 
-	//"github.com/ericlagergren/go-gnulib/login"
 	"github.com/marguerite/go-gnulib/login"
+	"github.com/marguerite/go-stdlib/internal"
 )
 
 // Is64Bit if the operation system is 64bit system
@@ -23,5 +24,6 @@ func LogName() string {
 	if err != nil {
 		panic(err)
 	}
-	return name
+	// name is fixed-width, may has many tailing null bytes, thus os.Open may fail
+	return internal.Bytes2str(bytes.Trim(internal.Str2bytes(name), "\x00"))
 }
