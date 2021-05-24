@@ -9,7 +9,7 @@ import (
 )
 
 // Contains if s contains any of the substrings, all of the substrings,
-// and index of their occurances
+// and index of their occurrences
 func Contains(s string, substrings ...string) (bool, bool, map[string]int) {
 	if len(s) == 0 {
 		return false, false, nil

@@ -7,7 +7,8 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/marguerite/go-stdlib/pattern"
+	"github.com/marguerite/go-stdlib/extglob"
+	"github.com/marguerite/go-stdlib/internal"
 )
 
 // FollowSymlink follows the path of the symlink recursively and finds out the target it finally points to.
@@ -37,21 +38,15 @@ func FollowSymlink(path string) (link string, err error) {
 // recursive: whether to recursively list the second level file list
 // kind: if set, will only list the direcories
 func Ls(directory string, symlink, recursive bool, kind ...string) (files []string, err error) {
-	directories := pattern.Expand(directory)
+	directories, err := extglob.Expand(internal.Str2bytes(directory))
+	if err != nil {
+		return files, err
+	}
 
 	for _, v := range directories {
-		f, err := os.Open(v)
+		f, _ := os.Open(v)
 
-		if err != nil {
-			f.Close()
-			continue
-		}
-
-		i, err := f.Stat()
-		if err != nil {
-			f.Close()
-			return files, err
-		}
+		i, _ := f.Stat()
 
 		if i.Mode()&os.ModeSymlink != 0 {
 			if !symlink {
@@ -133,9 +128,9 @@ func MkdirP(path string) error {
 
 // Glob glob actual files via the pattern, pattern can be *regexp.Regexp or string
 // when *regexp.Regexp is used, base is a must.
-func Glob(patt interface{}, opts ...interface{}) (files []string, err error) {
+func Glob(patt interface{}, opts ...interface{}) ([]string, error) {
 	if len(opts) > 2 {
-		return files, fmt.Errorf("opts just have two values: base and exclusion")
+		return []string{}, fmt.Errorf("opts just have two values: base and exclusion")
 	}
 
 	var base string
@@ -149,9 +144,10 @@ func Glob(patt interface{}, opts ...interface{}) (files []string, err error) {
 	case *regexp.Regexp:
 		matches, err := Ls(base, true, true)
 		if err != nil {
-			return files, err
+			return matches, err
 		}
 
+		files := make([]string, 0, len(matches))
 		for _, v := range matches {
 			if val.MatchString(v) {
 				if len(opts) > 1 {
@@ -164,14 +160,26 @@ func Glob(patt interface{}, opts ...interface{}) (files []string, err error) {
 				files = append(files, v)
 			}
 		}
+		return files, nil
 	case string:
 		// string match
-		matches := pattern.Expand(val)
-		for _, v := range matches {
-			if _, err := os.Stat(v); err == nil {
-				files = append(files, v)
+		if len(base) > 0 {
+			val = filepath.Join(base, val)
+		}
+		matches, err := extglob.Expand(internal.Str2bytes(val))
+		if len(opts) > 1 {
+			if val1, ok := opts[1].(string); ok {
+				m := extglob.Match(matches, val1)
+				for i := 0; i < len(matches); i++ {
+					for _, f := range m {
+						if f == matches[i] {
+							matches = append(matches[:i], matches[i+1:]...)
+						}
+					}
+				}
 			}
 		}
+		return matches, err
 	}
-	return files, err
+	return []string{}, nil
 }

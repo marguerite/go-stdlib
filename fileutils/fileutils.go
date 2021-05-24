@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/marguerite/go-stdlib/dir"
-	"github.com/marguerite/go-stdlib/pattern"
+	"github.com/marguerite/go-stdlib/extglob"
+	"github.com/marguerite/go-stdlib/internal"
 )
 
 //Touch touch a file
@@ -80,10 +81,7 @@ func cp(source, destination, original string) error {
 
 func copy(source, destination string, fn func(s, d, o string) error) error {
 	// check source status
-	si, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
+	si, _ := os.Stat(source)
 
 	// source is a symlink, copy its original content
 	if si.Mode()&os.ModeSymlink != 0 {
@@ -168,11 +166,15 @@ func copy(source, destination string, fn func(s, d, o string) error) error {
 
 // Copy like Linux's cp command, copy a file/dirctory to another place.
 func Copy(src, dest string) error {
-	sources := pattern.Expand(src)
+	sources, err := extglob.Expand(internal.Str2bytes(src))
+	if err != nil {
+		return err
+	}
+	// sources are always valid files, the check is in extglob's validFunc
 	for _, v := range sources {
-		err := copy(v, dest, cp)
-		if err != nil {
-			return err
+		err1 := copy(v, dest, cp)
+		if err1 != nil {
+			return err1
 		}
 	}
 	return nil
