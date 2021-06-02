@@ -204,14 +204,14 @@ func expand(b []byte, extglob, globalstar bool, fn ListFunc, fn1 ValidFunc) ([]s
 					}
 
 					if globalstar && (tmp.String() == "**") {
-						for _, v := range files {
-							paths1 = append(paths1, internal.Str2bytes(v))
+						for _, v1 := range files {
+							paths1 = append(paths1, internal.Str2bytes(v1))
 						}
 					} else {
 						tmp2 := bytes.NewBuffer(tmp.Bytes())
 						m := match(files, tmp2, extglob, 0)
-						for _, v := range m {
-							paths1 = append(paths1, internal.Str2bytes(v))
+						for _, v1 := range m {
+							paths1 = append(paths1, internal.Str2bytes(v1))
 						}
 					}
 				}
@@ -234,7 +234,7 @@ func expand(b []byte, extglob, globalstar bool, fn ListFunc, fn1 ValidFunc) ([]s
 				}
 			}
 			// reset the buffer to store the next sub-path
-			tmp.Reset()
+			tmp = bytes.NewBuffer([]byte{})
 			continue
 		}
 		// simply write none path separator character

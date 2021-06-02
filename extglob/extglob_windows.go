@@ -9,5 +9,5 @@ import (
 const PATH_SEPARATOR = '\\'
 
 var (
-	root = filepath.VolumeName(os.GetEnv("SYSTEMROOT")) + PATHSEPARATOR
+	root = filepath.VolumeName(os.Getenv("SYSTEMROOT")) + string([]rune{PATH_SEPARATOR})
 )
