@@ -1,8 +1,0 @@
-github.com/EricLagergren/go-gnulib v0.0.0-20191129172535-039a51fc60f4 h1:jf1NaERjQnGBXLalg4twohDD2SZYs04AfqKRQDG+iuo=
-github.com/EricLagergren/go-gnulib v0.0.0-20191129172535-039a51fc60f4/go.mod h1:cfaDkn0a/WANftKgBnrbQh019l4tjDkYXRsGLsIbhAg=
-github.com/marguerite/go-gnulib v0.0.0-20201129052155-646ebc0367a8 h1:ygl6WQISmoPOMotDhLBNJDdPWeqK6lHecSJCBGJm6UQ=
-github.com/marguerite/go-gnulib v0.0.0-20201129052155-646ebc0367a8/go.mod h1:3rYBf8gtXz3mUEDnme0ZEuJihv5SxYDYhhuErSa2R/E=
-github.com/marguerite/go-stdlib v0.0.0-20201129053131-f9e87b29ae7b h1:ALvbfhR7GcApRiHWHpOd30+a1q77m62uaNhqdOomlWE=
-github.com/marguerite/go-stdlib v0.0.0-20201129053131-f9e87b29ae7b/go.mod h1:Eh9sXSouLfXNCm7k/5PffYs4qZtBJqRJKlv+boNaqCI=
-golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c h1:VwygUrnw9jn88c4u8GD3rZQbqrP/tgas88tPUbBxQrk=
-golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
