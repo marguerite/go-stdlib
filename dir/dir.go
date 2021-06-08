@@ -9,6 +9,7 @@ import (
 
 	"github.com/marguerite/go-stdlib/extglob"
 	"github.com/marguerite/go-stdlib/internal"
+	"github.com/marguerite/go-stdlib/slice"
 )
 
 // FollowSymlink follows the path of the symlink recursively and finds out the target it finally points to.
@@ -167,19 +168,22 @@ func Glob(patt interface{}, opts ...interface{}) ([]string, error) {
 			val = filepath.Join(base, val)
 		}
 		matches, err := extglob.Expand(internal.Str2bytes(val))
+		if err != nil {
+			return matches, err
+		}
 		if len(opts) > 1 {
 			if val1, ok := opts[1].(string); ok {
-				m := extglob.Match(matches, val1)
-				for i := 0; i < len(matches); i++ {
-					for _, f := range m {
-						if f == matches[i] {
-							matches = append(matches[:i], matches[i+1:]...)
-						}
-					}
+				m, err := extglob.Expand(internal.Str2bytes(filepath.Join(base, val1)))
+				if err != nil {
+					return matches, err
+				}
+				err = slice.Remove(&matches, m)
+				if err != nil {
+					return matches, err
 				}
 			}
 		}
-		return matches, err
+		return matches, nil
 	}
 	return []string{}, nil
 }

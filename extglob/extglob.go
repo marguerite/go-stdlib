@@ -99,15 +99,12 @@ func list(p string, globalstar, tailing bool) ([]string, error) {
 				return err1
 			}
 			if tailing {
-				if info.IsDir() && p1 != p {
+				if info.IsDir() {
 					files = append(files, p1)
 				}
 				return nil
 			}
-			// don't include self
-			if p1 != p {
-				files = append(files, p1)
-			}
+			files = append(files, p1)
 			return nil
 		})
 
@@ -254,11 +251,6 @@ func expand(b []byte, extglob, globalstar bool, fn ListFunc, fn1 ValidFunc) ([]s
 	return arr, nil
 }
 
-// Match if basenames of file match pattern
-func Match(files []string, pattern string) []string {
-	return match(files, bytes.NewBufferString(pattern), true, 0)
-}
-
 func match(files []string, buf *bytes.Buffer, extglob bool, skip int) []string {
 	// n: the number of bytes read from extglob buf
 	// n1: the actual byte position of the to-be-match filename
@@ -342,7 +334,7 @@ func match(files []string, buf *bytes.Buffer, extglob bool, skip int) []string {
 				// normal match
 				for i := 0; i < len(files); i++ {
 					v1 := basenamebytes(files[i])
-					if n > len(v1)-1 || b != v1[n+skip] {
+					if n > len(v1)-1 || b != v1[n+skip] || (buf.Len() == 0 && len(v1)-1-n1-skip > 0) {
 						files = append(files[:i], files[i+1:]...)
 					}
 				}
@@ -422,7 +414,8 @@ func match(files []string, buf *bytes.Buffer, extglob bool, skip int) []string {
 			// normal match
 			for i := 0; i < len(files); i++ {
 				v1 := basenamebytes(files[i])
-				if n1+skip > len(v1)-1 || b != v1[n1+skip] {
+				// buf.Len() == 0: the buf ends; len(v1)-1-n1-skip>p, the basename still has bytes left not match. eg: .go and .golang
+				if n1+skip > len(v1)-1 || b != v1[n1+skip] || (buf.Len() == 0 && len(v1)-1-n1-skip > 0) {
 					files = append(files[:i], files[i+1:]...)
 					i--
 				}
@@ -682,7 +675,7 @@ func shellmatch(files *[]string, buf *bytes.Buffer, skip int) {
 			// normal match
 			for i := 0; i < len(*files); i++ {
 				v1 := basenamebytes((*files)[i])
-				if n1+skip > len(v1)-1 || b != v1[n1+skip] {
+				if n1+skip > len(v1)-1 || b != v1[n1+skip] || (buf.Len() == 0 && len(v1)-1-n1-skip > 0) {
 					*files = append((*files)[:i], (*files)[i+1:]...)
 					i--
 				}
