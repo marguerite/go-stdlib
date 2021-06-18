@@ -115,7 +115,7 @@ func Ls(directory string, symlink, recursive bool, kind ...string) (files []stri
 func MkdirP(path string) error {
 	_, err := os.Stat(path)
 	if err == nil {
-		return err
+		return os.ErrExist
 	}
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
