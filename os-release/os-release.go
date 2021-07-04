@@ -17,6 +17,7 @@ func init() {
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(f))
+  release = make(map[string]string)
 	for scanner.Scan() {
 		arr := strings.Split(scanner.Text(), "=")
 		release[strings.ToLower(arr[0])] = strings.Replace(arr[1], "\"", "", -1)
